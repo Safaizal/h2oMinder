@@ -5,12 +5,19 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('electronAPI', {
   // Data operations
   getSettings: () => ipcRenderer.invoke('get-settings'),
-  saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
+  saveSettings: (settings: unknown) => ipcRenderer.invoke('save-settings', settings),
   addWater: (amount: number) => ipcRenderer.invoke('add-water', amount),
   getTodayIntake: () => ipcRenderer.invoke('get-today-intake'),
 
-  // Event listeners (Main -> Renderer)
+  // Event listeners (Main -> Renderer). Each returns an unsubscribe fn.
   onReminder: (callback: () => void) => {
-    ipcRenderer.on('trigger-reminder', callback)
+    const handler = (): void => callback()
+    ipcRenderer.on('trigger-reminder', handler)
+    return () => ipcRenderer.removeListener('trigger-reminder', handler)
+  },
+  onDataUpdated: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('data-updated', handler)
+    return () => ipcRenderer.removeListener('data-updated', handler)
   }
 })

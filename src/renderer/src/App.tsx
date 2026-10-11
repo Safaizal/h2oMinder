@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
+import MatrixRain from './components/MatrixRain'
+import { useAnimatedNumber } from './hooks/useAnimatedNumber'
+import { isMuted, playClick, playGlug, playGoalFanfare, setMuted } from './lib/sound'
 
-// Zustand store for UI state
+// ---------- store ----------
 interface AppState {
   intake: number
   goal: number
@@ -13,80 +16,327 @@ const useStore = create<AppState>((set) => ({
   intake: 0,
   goal: 2000,
   setIntake: (val) => set({ intake: val }),
-  setGoal: (val) => set({ goal: val }),
+  setGoal: (val) => set({ goal: val })
 }))
 
-export default function App() {
+// ---------- mood themes ----------
+interface Mood {
+  id: string
+  label: string
+  sub: string
+  accent: string
+  accentSoft: string
+  glow: string
+  waterFrom: string
+  waterTo: string
+  bgWash: string
+}
+
+function moodFor(pct: number): Mood {
+  if (pct < 30)
+    return {
+      id: 'DEHYDRATED',
+      label: '// STATUS: DEHYDRATED',
+      sub: 'initiate hydration protocol_',
+      accent: '#ffb020',
+      accentSoft: 'rgba(255,176,32,0.16)',
+      glow: '0 0 18px rgba(255,176,32,0.55), 0 0 42px rgba(255,120,0,0.25)',
+      waterFrom: '#ff8c00',
+      waterTo: '#ffd678',
+      bgWash: 'radial-gradient(120% 90% at 50% 0%, rgba(255,140,0,0.22) 0%, rgba(20,8,2,0) 60%)'
+    }
+  if (pct < 70)
+    return {
+      id: 'HYDRATED',
+      label: '// STATUS: HYDRATED',
+      sub: 'systems nominal. keep sipping_',
+      accent: '#00e5ff',
+      accentSoft: 'rgba(0,229,255,0.14)',
+      glow: '0 0 18px rgba(0,229,255,0.55), 0 0 42px rgba(0,120,255,0.28)',
+      waterFrom: '#0090ff',
+      waterTo: '#7df9ff',
+      bgWash: 'radial-gradient(120% 90% at 50% 0%, rgba(0,229,255,0.20) 0%, rgba(2,10,16,0) 60%)'
+    }
+  if (pct < 100)
+    return {
+      id: 'FLOW_STATE',
+      label: '// STATUS: FLOW_STATE',
+      sub: 'optimal saturation. elite hydration_',
+      accent: '#34ff96',
+      accentSoft: 'rgba(52,255,150,0.14)',
+      glow: '0 0 18px rgba(52,255,150,0.55), 0 0 42px rgba(0,255,150,0.25)',
+      waterFrom: '#00c47a',
+      waterTo: '#beffdc',
+      bgWash: 'radial-gradient(120% 90% at 50% 0%, rgba(52,255,150,0.18) 0%, rgba(2,12,8,0) 60%)'
+    }
+  return {
+    id: 'OVER_HYDRATED',
+    label: '// STATUS: OVER-HYDRATED',
+    sub: 'entering deep calm. midnight mode_',
+    accent: '#aa82ff',
+    accentSoft: 'rgba(170,130,255,0.16)',
+    glow: '0 0 18px rgba(170,130,255,0.6), 0 0 46px rgba(80,60,255,0.35)',
+    waterFrom: '#3b2fd4',
+    waterTo: '#c9bfff',
+    bgWash: 'radial-gradient(120% 90% at 50% 0%, rgba(120,90,255,0.24) 0%, rgba(8,6,20,0) 62%)'
+  }
+}
+
+const BOOT_LINES = [
+  '> h20minder v2.0 -- boot sequence',
+  '> mounting /dev/throat ... OK',
+  '> hydration daemon listening...'
+]
+
+interface Ripple {
+  id: number
+  x: number // % from left
+  big: boolean
+}
+
+let rippleId = 0
+
+export default function App(): React.JSX.Element {
   const { intake, goal, setIntake, setGoal } = useStore()
-  const [isAdding, setIsAdding] = useState(false)
+  const [ripples, setRipples] = useState<Ripple[]>([])
+  const [wobbleKey, setWobbleKey] = useState(0)
+  const [flash, setFlash] = useState(false)
+  const [muted, setMuteUi] = useState(isMuted())
+  const [booted, setBooted] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const prevPctRef = useRef(0)
 
+  const rawPct = goal > 0 ? (intake / goal) * 100 : 0
+  const pct = Math.min(rawPct, 100)
+  const over = rawPct >= 100
+  const mood = useMemo(() => moodFor(rawPct), [rawPct])
+  const rolled = useAnimatedNumber(intake)
+
+  // boot
   useEffect(() => {
-    // Load initial data from Main process
-    window.electronAPI.getTodayIntake().then(setIntake)
-    window.electronAPI.getSettings().then(settings => {
-      setGoal(settings.dailyGoal)
-    })
-
-    // Listen for reminders
-    window.electronAPI.onReminder(() => {
-      // Play a sound or flash the UI here
-      setIsAdding(true)
-      setTimeout(() => setIsAdding(false), 1000)
-    })
+    const t = setTimeout(() => setBooted(true), 900)
+    return () => clearTimeout(t)
   }, [])
 
-  const handleAddWater = async (amount: number) => {
-    const newIntake = await window.electronAPI.addWater(amount)
-    setIntake(newIntake)
+  // initial load + live updates (tray quick-add sends data-updated)
+  useEffect(() => {
+    window.electronAPI.getTodayIntake().then(setIntake)
+    window.electronAPI.getSettings().then((s) => setGoal(s.dailyGoal))
+    const offReminder = window.electronAPI.onReminder(() => {
+      setFlash(true)
+      playClick()
+      setTimeout(() => setFlash(false), 1200)
+    })
+    const offUpdated = window.electronAPI.onDataUpdated?.(() => {
+      window.electronAPI.getTodayIntake().then(setIntake)
+    })
+    return () => {
+      offReminder?.()
+      offUpdated?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const spawnRipples = useCallback((big: boolean) => {
+    const count = big ? 5 : 3
+    const fresh: Ripple[] = Array.from({ length: count }, (_, i) => ({
+      id: ++rippleId,
+      x: 18 + Math.random() * 64,
+      big: big && i === 0
+    }))
+    setRipples((r) => [...r.slice(-8), ...fresh])
+    setTimeout(() => {
+      setRipples((r) => r.filter((x) => !fresh.some((f) => f.id === x.id)))
+    }, 1400)
+  }, [])
+
+  const handleAddWater = async (amount: number): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    playGlug(amount)
+    spawnRipples(amount >= 500)
+    setWobbleKey((k) => k + 1)
+    try {
+      const next = await window.electronAPI.addWater(amount)
+      const wasOver = prevPctRef.current >= 100
+      setIntake(next)
+      if (!wasOver && goal > 0 && next >= goal) {
+        setTimeout(() => playGoalFanfare(), 350)
+        setFlash(true)
+        setTimeout(() => setFlash(false), 1600)
+      }
+    } finally {
+      setTimeout(() => setBusy(false), 250)
+    }
   }
 
-  const percentage = Math.min((intake / goal) * 100, 100)
+  const handleUndo = async (): Promise<void> => {
+    playClick()
+    const next = await window.electronAPI.addWater(-250)
+    setIntake(Math.max(0, next))
+  }
+
+  useEffect(() => {
+    prevPctRef.current = rawPct
+  }, [rawPct])
+
+  const toggleMute = (): void => {
+    const next = !muted
+    setMuteUi(next)
+    setMuted(next)
+    if (!next) playClick()
+  }
+
+  const changeGoal = async (delta: number): Promise<void> => {
+    const next = Math.min(5000, Math.max(500, goal + delta))
+    setGoal(next)
+    playClick()
+    await window.electronAPI.saveSettings({ dailyGoal: next, reminderMinutes: 45 })
+  }
+
+  // terminal progress bar: 24 blocks
+  const blocks = 24
+  const filled = Math.round((pct / 100) * blocks)
 
   return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 p-6 rounded-2xl overflow-hidden">
+    <div
+      className={`hacker-root glass ${flash ? 'screen-flash' : ''}`}
+      style={
+        {
+          '--accent': mood.accent,
+          '--accent-soft': mood.accentSoft,
+          '--neon-glow': mood.glow,
+          '--water-from': mood.waterFrom,
+          '--water-to': mood.waterTo
+        } as React.CSSProperties
+      }
+    >
+      <MatrixRain tint={mood.accent} />
+      <div className="wash" style={{ background: mood.bgWash }} />
+      <div className="scanlines" />
+      <div className="vignette" />
 
-      {/* Custom Title Bar (since frame is false) */}
-      <div className="absolute top-0 left-0 right-0 h-8 flex justify-end items-center px-4 bg-slate-200/50 dark:bg-slate-800/50 rounded-t-2xl">
-        <button onClick={() => window.close()} className="text-red-500 hover:text-red-700 font-bold">✕</button>
-      </div>
-
-      {/* Visual Water Bottle */}
-      <div className={`relative w-32 h-48 border-4 border-cyan-400 rounded-b-3xl rounded-t-lg overflow-hidden mb-8 transition-transform ${isAdding ? 'scale-105' : 'scale-100'}`}>
-        {/* Water Fill */}
-        <div
-          className="absolute bottom-0 w-full bg-gradient-to-t from-cyan-500 to-blue-400 transition-all duration-700 ease-out"
-          style={{ height: `${percentage}%` }}
-        >
-          {/* CSS Wave Effect */}
-          <div className="absolute top-0 left-0 w-[200%] h-4 bg-white/20 animate-wave"></div>
-        </div>
-        {/* Measurement lines */}
-        <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
-          {[...Array(4)].map((_, i) => <div key={i} className="w-full h-px bg-white/30"></div>)}
-        </div>
-      </div>
-
-      {/* Stats */}
-      <h1 className="text-4xl font-bold text-cyan-600 dark:text-cyan-400 mb-1">{intake} ml</h1>
-      <p className="text-slate-500 dark:text-slate-400 mb-8">Goal: {goal} ml</p>
-
-      {/* Action Buttons */}
-      <div className="flex gap-4">
-        <button
-          onClick={() => handleAddWater(250)}
-          className="px-6 py-3 bg-cyan-500 text-white rounded-full hover:bg-cyan-600 active:scale-95 transition shadow-lg shadow-cyan-500/30 font-semibold"
-        >
-          + 250ml
-        </button>
-        <button
-          onClick={() => handleAddWater(500)}
-          className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 active:scale-95 transition shadow-lg shadow-blue-500/30 font-semibold"
-        >
-          + 500ml
+      {/* title bar (frameless drag) */}
+      <div className="titlebar">
+        <span className="dot r" />
+        <span className="dot y" />
+        <span className="dot g" />
+        <span className="title-text">root@h20:~/hydration -- zsh</span>
+        <button className="win-btn" onClick={() => window.close()} title="close">
+          ✕
         </button>
       </div>
 
-      <p className="mt-8 text-xs text-slate-400">Next reminder in 45 mins</p>
+      <div className="panel">
+        {/* boot / header */}
+        <div className="boot" aria-live="polite">
+          {BOOT_LINES.map((l) => (
+            <div key={l} className="boot-line">
+              {l}
+            </div>
+          ))}
+          <div className="mood-line" style={{ color: mood.accent }}>
+            {mood.label} <span className="caret">▊</span>
+          </div>
+          <div className="sub-line">{mood.sub}</div>
+        </div>
+
+        {/* bottle */}
+        <div className="bottle-wrap">
+          <div key={wobbleKey} className="bottle wobble">
+            <div className="bottle-cap" />
+            <div className="bottle-body">
+              <div
+                className="water-fill"
+                style={{
+                  height: `${over ? 100 : pct}%`,
+                  background: `linear-gradient(to top, var(--water-from), var(--water-to))`
+                }}
+              >
+                <svg className="wave-svg" viewBox="0 0 200 14" preserveAspectRatio="none">
+                  <path
+                    d="M0 7 Q 12.5 0 25 7 T 50 7 T 75 7 T 100 7 T 125 7 T 150 7 T 175 7 T 200 7 V14 H0 Z"
+                    fill="rgba(255,255,255,0.35)"
+                  />
+                </svg>
+              </div>
+              {/* ripples */}
+              {ripples.map((r) => (
+                <span
+                  key={r.id}
+                  className={`ripple ${r.big ? 'big' : ''}`}
+                  style={{ left: `${r.x}%` }}
+                />
+              ))}
+              {/* measurement ticks */}
+              <div className="ticks">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="tick" />
+                ))}
+              </div>
+              <div className={`pct-chip ${over ? 'over' : ''}`}>
+                {over ? '100%+' : `${Math.floor(rawPct)}%`}
+              </div>
+            </div>
+          </div>
+
+          {/* readouts */}
+          <div className="readouts">
+            <div className="intake-num" title={`${intake} ml`}>
+              <span className={`roll ${busy ? 'rolling' : ''}`}>{rolled.toLocaleString()}</span>
+              <span className="unit">ml</span>
+            </div>
+            <div className="goal-row">
+              <span>
+                TARGET: <b>{goal}</b> ml
+              </span>
+              <span className="stepper">
+                <button onClick={() => changeGoal(-250)} title="lower goal">
+                  −
+                </button>
+                <button onClick={() => changeGoal(250)} title="raise goal">
+                  +
+                </button>
+              </span>
+            </div>
+            <div className="bar" aria-label={`hydration ${Math.floor(rawPct)} percent`}>
+              <span className="bar-fill" style={{ width: `${over ? 100 : pct}%` }} />
+              <span className="bar-text">
+                {'▓'.repeat(filled)}
+                {'░'.repeat(blocks - filled)}
+              </span>
+            </div>
+            <div className="hexline">
+              INTAKE {intake}/{goal} ML :: {Math.floor(rawPct)}%{over ? ' :: SATURATED' : ''}
+            </div>
+          </div>
+        </div>
+
+        {/* actions */}
+        <div className="actions">
+          <button className="btn primary" onClick={() => handleAddWater(250)} disabled={busy}>
+            <span className="btn-key">[1]</span> +250ml
+          </button>
+          <button className="btn secondary" onClick={() => handleAddWater(500)} disabled={busy}>
+            <span className="btn-key">[2]</span> +500ml
+          </button>
+        </div>
+        <div className="foot-row">
+          <button className="link" onClick={handleUndo} title="remove last 250ml">
+            ↩ undo −250
+          </button>
+          <span className="reminder">⏱ next ping in ~45 min</span>
+          <button
+            className={`link ${muted ? 'off' : ''}`}
+            onClick={toggleMute}
+            title="toggle sound"
+          >
+            {muted ? '🔇 snd:off' : '🔊 snd:on'}
+          </button>
+        </div>
+
+        {!booted && <div className="boot-veil">booting…</div>}
+      </div>
     </div>
   )
 }
