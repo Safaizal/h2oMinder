@@ -6,10 +6,10 @@ Retro-hacker hydration reminder widget for your desktop. Log water intake, get r
 
 Grab the latest installer for your OS from the [**Releases page**](https://github.com/Safaizal/h2oMinder/releases/latest):
 
-| OS      | File                            |
-| ------- | ------------------------------- |
-| Windows | `h20minder-<version>-setup.exe` |
-| macOS   | `h20minder-<version>.dmg`       |
+| OS      | File                                     |
+| ------- | ---------------------------------------- |
+| Windows | `h20minder-<version>-setup.exe`          |
+| macOS   | `h20minder-<version>.dmg`                |
 | Linux   | `h20minder-<version>.AppImage` or `.deb` |
 
 > **Note:** the Windows and macOS builds are unsigned, so you may see a

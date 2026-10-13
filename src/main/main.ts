@@ -19,7 +19,12 @@ app.whenReady().then(() => {
   tray = new Tray(path.join(__dirname, 'icon.png'))
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Show App', click: () => mainWindow?.show() },
-    { label: 'Add 250ml', click: () => { /* trigger add water logic */ } },
+    {
+      label: 'Add 250ml',
+      click: () => {
+        /* trigger add water logic */
+      }
+    },
     { label: 'Quit', click: () => app.quit() }
   ])
   tray.setToolTip('Water Reminder')
@@ -29,14 +34,17 @@ app.whenReady().then(() => {
   startReminders(45) // Remind every 45 mins
 })
 
-function startReminders(minutes: number) {
+function startReminders(minutes: number): void {
   if (reminderInterval) clearInterval(reminderInterval)
 
-  reminderInterval = setInterval(() => {
-    new Notification({
-      title: 'Time to hydrate! 💧',
-      body: 'You haven\'t drank water in a while. Click to log a glass.',
-      // Note: Add action buttons via native OS APIs if needed
-    }).show()
-  }, minutes * 60 * 1000)
+  reminderInterval = setInterval(
+    () => {
+      new Notification({
+        title: 'Time to hydrate! 💧',
+        body: "You haven't drank water in a while. Click to log a glass."
+        // Note: Add action buttons via native OS APIs if needed
+      }).show()
+    },
+    minutes * 60 * 1000
+  )
 }

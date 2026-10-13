@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type -- plain Node .mjs build script (cannot annotate types) */
 /**
  * generate-tray-icons.mjs
  * Generates 11 retro-hacker tray icons (0%..100% step 10) as pure PNGs.
@@ -78,7 +79,10 @@ function drawIcon(pct) {
     rgba[i + 3] = a
   }
   // Bottle bounds
-  const x0 = 8, x1 = 23, y0 = 6, y1 = 28
+  const x0 = 8,
+    x1 = 23,
+    y0 = 6,
+    y1 = 28
   const innerH = y1 - y0 - 3
   const fillH = Math.round((pct / 100) * innerH)
   const waterTopY = y1 - 2 - fillH
@@ -86,7 +90,8 @@ function drawIcon(pct) {
     for (let x = 0; x < S; x++) {
       const onLeft = x === x0 || x === x0 + 1 - 1
       const border =
-        (x >= x0 && x <= x1 && (y === y0 || y === y1)) || ((y >= y0 && y <= y1) && (x === x0 || x === x1))
+        (x >= x0 && x <= x1 && (y === y0 || y === y1)) ||
+        (y >= y0 && y <= y1 && (x === x0 || x === x1))
       const inside = x > x0 && x < x1 && y > y0 && y < y1
       if (border) {
         // neon border, dimmer at top cap gap
@@ -97,7 +102,7 @@ function drawIcon(pct) {
           const isSurface = y <= waterTopY + 1
           const c = isSurface ? waterTop : water
           // subtle vertical dither for "phosphor" feel
-          const d = ((x + y) % 2 === 0 ? 8 : 0)
+          const d = (x + y) % 2 === 0 ? 8 : 0
           set(x, y, Math.max(0, c[0] - d), Math.max(0, c[1] - d), Math.max(0, c[2] - d), 255)
         } else {
           // empty region: faint grid dots so tray icon reads on dark + light bars

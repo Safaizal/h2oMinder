@@ -38,6 +38,7 @@ linux:
   maintainer: Safaizal
   category: Utility
   description: Retro-hacker hydration reminder widget for your desktop
+  syncDesktopName: true
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
