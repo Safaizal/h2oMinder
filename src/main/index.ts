@@ -131,7 +131,11 @@ interface NotifyConfig {
   discord?: { webhookUrl: string }
 }
 
-async function sendMobileNotification(cfg: NotifyConfig, title: string, body: string): Promise<void> {
+async function sendMobileNotification(
+  cfg: NotifyConfig,
+  title: string,
+  body: string
+): Promise<void> {
   try {
     if (cfg.service === 'pushover' && cfg.pushover) {
       const url = 'https://api.pushover.net/1/messages.json'
@@ -139,7 +143,7 @@ async function sendMobileNotification(cfg: NotifyConfig, title: string, body: st
         token: cfg.pushover.token,
         user: cfg.pushover.userKey,
         title,
-        message: body,
+        message: body
       })
       await fetch(url, { method: 'POST', body: params })
     } else if (cfg.service === 'telegram' && cfg.telegram) {
@@ -147,14 +151,14 @@ async function sendMobileNotification(cfg: NotifyConfig, title: string, body: st
       const params = new URLSearchParams({
         chat_id: cfg.telegram.chatId,
         text: `${title} — ${body}`,
-        parse_mode: 'HTML',
+        parse_mode: 'HTML'
       })
       await fetch(url, { method: 'POST', body: params })
     } else if (cfg.service === 'discord' && cfg.discord) {
       await fetch(cfg.discord.webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: '💧 h2oMinder', content: `**${title}** — ${body}` }),
+        body: JSON.stringify({ username: '💧 h2oMinder', content: `**${title}** — ${body}` })
       })
     }
   } catch {

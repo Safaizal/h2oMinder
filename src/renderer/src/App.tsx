@@ -128,7 +128,7 @@ export default function App(): React.JSX.Element {
     return () => clearTimeout(t)
   }, [])
 
-  const handleSaveNotify = (cfg: NotifyConfig) => {
+  const handleSaveNotify = (cfg: NotifyConfig): void => {
     setNotifyCfg(cfg)
     window.electronAPI.saveNotifyConfig(cfg)
   }
@@ -360,11 +360,13 @@ export default function App(): React.JSX.Element {
       </div>
 
       {!booted && <div className="boot-veil">booting…</div>}
-      </div>
 
       {/* Settings modal — sibling of .panel, inside .hacker-root */}
       {settingsOpen && notifyCfg && (
-        <div className="settings-modal" onPointerDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>
+        <div
+          className="settings-modal"
+          onPointerDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}
+        >
           <div className="settings-panel">
             <h3>📱 Mobile Notifications</h3>
 
@@ -372,7 +374,12 @@ export default function App(): React.JSX.Element {
               <label>Service</label>
               <select
                 value={notifyCfg.service}
-                onChange={(e) => handleSaveNotify({ ...notifyCfg, service: e.target.value as NotifyConfig['service'] })}
+                onChange={(e) =>
+                  handleSaveNotify({
+                    ...notifyCfg,
+                    service: e.target.value as NotifyConfig['service']
+                  })
+                }
               >
                 <option value="none">Disabled (desktop only)</option>
                 <option value="pushover">Pushover</option>
@@ -385,13 +392,31 @@ export default function App(): React.JSX.Element {
               <div className="field-group-stack">
                 <div className="field-group">
                   <label>Token</label>
-                  <input type="password" placeholder="api.pushover.net" value={notifyCfg.pushover?.token || ''}
-                    onChange={(e) => handleSaveNotify({ ...notifyCfg, pushover: { ...notifyCfg.pushover!, token: e.target.value } })} />
+                  <input
+                    type="password"
+                    placeholder="api.pushover.net"
+                    value={notifyCfg.pushover?.token || ''}
+                    onChange={(e) =>
+                      handleSaveNotify({
+                        ...notifyCfg,
+                        pushover: { ...notifyCfg.pushover!, token: e.target.value }
+                      })
+                    }
+                  />
                 </div>
                 <div className="field-group">
                   <label>User Key</label>
-                  <input type="password" placeholder="U-xxxxxxxx-xxxx-xxxx" value={notifyCfg.pushover?.userKey || ''}
-                    onChange={(e) => handleSaveNotify({ ...notifyCfg, pushover: { ...notifyCfg.pushover!, userKey: e.target.value } })} />
+                  <input
+                    type="password"
+                    placeholder="U-xxxxxxxx-xxxx-xxxx"
+                    value={notifyCfg.pushover?.userKey || ''}
+                    onChange={(e) =>
+                      handleSaveNotify({
+                        ...notifyCfg,
+                        pushover: { ...notifyCfg.pushover!, userKey: e.target.value }
+                      })
+                    }
+                  />
                 </div>
               </div>
             )}
@@ -400,13 +425,30 @@ export default function App(): React.JSX.Element {
               <div className="field-group-stack">
                 <div className="field-group">
                   <label>Bot Token</label>
-                  <input type="password" placeholder="123456:ABC-DEF..." value={notifyCfg.telegram?.botToken || ''}
-                    onChange={(e) => handleSaveNotify({ ...notifyCfg, telegram: { ...notifyCfg.telegram!, botToken: e.target.value } })} />
+                  <input
+                    type="password"
+                    placeholder="123456:ABC-DEF..."
+                    value={notifyCfg.telegram?.botToken || ''}
+                    onChange={(e) =>
+                      handleSaveNotify({
+                        ...notifyCfg,
+                        telegram: { ...notifyCfg.telegram!, botToken: e.target.value }
+                      })
+                    }
+                  />
                 </div>
                 <div className="field-group">
                   <label>Chat ID</label>
-                  <input placeholder="-123456789" value={notifyCfg.telegram?.chatId || ''}
-                    onChange={(e) => handleSaveNotify({ ...notifyCfg, telegram: { ...notifyCfg.telegram!, chatId: e.target.value } })} />
+                  <input
+                    placeholder="-123456789"
+                    value={notifyCfg.telegram?.chatId || ''}
+                    onChange={(e) =>
+                      handleSaveNotify({
+                        ...notifyCfg,
+                        telegram: { ...notifyCfg.telegram!, chatId: e.target.value }
+                      })
+                    }
+                  />
                 </div>
               </div>
             )}
@@ -414,8 +456,14 @@ export default function App(): React.JSX.Element {
             {notifyCfg.service === 'discord' && (
               <div className="field-group">
                 <label>Webhook URL</label>
-                <input type="password" placeholder="https://discord.com/api/webhooks/..." value={notifyCfg.discord?.webhookUrl || ''}
-                  onChange={(e) => handleSaveNotify({ ...notifyCfg, discord: { webhookUrl: e.target.value } })} />
+                <input
+                  type="password"
+                  placeholder="https://discord.com/api/webhooks/..."
+                  value={notifyCfg.discord?.webhookUrl || ''}
+                  onChange={(e) =>
+                    handleSaveNotify({ ...notifyCfg, discord: { webhookUrl: e.target.value } })
+                  }
+                />
               </div>
             )}
 
@@ -427,3 +475,4 @@ export default function App(): React.JSX.Element {
       )}
     </div>
   )
+}
