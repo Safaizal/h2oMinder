@@ -4,7 +4,15 @@ import MatrixRain from './components/MatrixRain'
 import { useAnimatedNumber } from './hooks/useAnimatedNumber'
 import { isMuted, playClick, playGlug, playGoalFanfare, setMuted } from './lib/sound'
 
-// ---------- store ----------
+// ---------- types ----------
+interface NotifyConfig {
+  service: 'none' | 'pushover' | 'telegram' | 'discord'
+  pushover?: { token: string; userKey: string }
+  telegram?: { botToken: string; chatId: string }
+  discord?: { webhookUrl: string }
+}
+
+// ---------- notification sound ----------
 interface AppState {
   intake: number
   goal: number
@@ -104,6 +112,8 @@ export default function App(): React.JSX.Element {
   const [muted, setMuteUi] = useState(isMuted())
   const [booted, setBooted] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [notifyCfg, setNotifyCfg] = useState<NotifyConfig | null>(null)
   const prevPctRef = useRef(0)
 
   const rawPct = goal > 0 ? (intake / goal) * 100 : 0
@@ -118,10 +128,16 @@ export default function App(): React.JSX.Element {
     return () => clearTimeout(t)
   }, [])
 
+  const handleSaveNotify = (cfg: NotifyConfig) => {
+    setNotifyCfg(cfg)
+    window.electronAPI.saveNotifyConfig(cfg)
+  }
+
   // initial load + live updates (tray quick-add sends data-updated)
   useEffect(() => {
     window.electronAPI.getTodayIntake().then(setIntake)
     window.electronAPI.getSettings().then((s) => setGoal(s.dailyGoal))
+    window.electronAPI.getNotifyConfig().then(setNotifyCfg)
     const offReminder = window.electronAPI.onReminder(() => {
       setFlash(true)
       playClick()
@@ -327,6 +343,13 @@ export default function App(): React.JSX.Element {
           </button>
           <span className="reminder">⏱ next ping in ~45 min</span>
           <button
+            className="link settings-link"
+            onClick={() => setSettingsOpen(true)}
+            title="notification bridge settings"
+          >
+            📱 notify
+          </button>
+          <button
             className={`link ${muted ? 'off' : ''}`}
             onClick={toggleMute}
             title="toggle sound"
@@ -334,9 +357,73 @@ export default function App(): React.JSX.Element {
             {muted ? '🔇 snd:off' : '🔊 snd:on'}
           </button>
         </div>
-
-        {!booted && <div className="boot-veil">booting…</div>}
       </div>
+
+      {!booted && <div className="boot-veil">booting…</div>}
+      </div>
+
+      {/* Settings modal — sibling of .panel, inside .hacker-root */}
+      {settingsOpen && notifyCfg && (
+        <div className="settings-modal" onPointerDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>
+          <div className="settings-panel">
+            <h3>📱 Mobile Notifications</h3>
+
+            <div className="field-group">
+              <label>Service</label>
+              <select
+                value={notifyCfg.service}
+                onChange={(e) => handleSaveNotify({ ...notifyCfg, service: e.target.value as NotifyConfig['service'] })}
+              >
+                <option value="none">Disabled (desktop only)</option>
+                <option value="pushover">Pushover</option>
+                <option value="telegram">Telegram Bot</option>
+                <option value="discord">Discord Webhook</option>
+              </select>
+            </div>
+
+            {notifyCfg.service === 'pushover' && (
+              <div className="field-group-stack">
+                <div className="field-group">
+                  <label>Token</label>
+                  <input type="password" placeholder="api.pushover.net" value={notifyCfg.pushover?.token || ''}
+                    onChange={(e) => handleSaveNotify({ ...notifyCfg, pushover: { ...notifyCfg.pushover!, token: e.target.value } })} />
+                </div>
+                <div className="field-group">
+                  <label>User Key</label>
+                  <input type="password" placeholder="U-xxxxxxxx-xxxx-xxxx" value={notifyCfg.pushover?.userKey || ''}
+                    onChange={(e) => handleSaveNotify({ ...notifyCfg, pushover: { ...notifyCfg.pushover!, userKey: e.target.value } })} />
+                </div>
+              </div>
+            )}
+
+            {notifyCfg.service === 'telegram' && (
+              <div className="field-group-stack">
+                <div className="field-group">
+                  <label>Bot Token</label>
+                  <input type="password" placeholder="123456:ABC-DEF..." value={notifyCfg.telegram?.botToken || ''}
+                    onChange={(e) => handleSaveNotify({ ...notifyCfg, telegram: { ...notifyCfg.telegram!, botToken: e.target.value } })} />
+                </div>
+                <div className="field-group">
+                  <label>Chat ID</label>
+                  <input placeholder="-123456789" value={notifyCfg.telegram?.chatId || ''}
+                    onChange={(e) => handleSaveNotify({ ...notifyCfg, telegram: { ...notifyCfg.telegram!, chatId: e.target.value } })} />
+                </div>
+              </div>
+            )}
+
+            {notifyCfg.service === 'discord' && (
+              <div className="field-group">
+                <label>Webhook URL</label>
+                <input type="password" placeholder="https://discord.com/api/webhooks/..." value={notifyCfg.discord?.webhookUrl || ''}
+                  onChange={(e) => handleSaveNotify({ ...notifyCfg, discord: { webhookUrl: e.target.value } })} />
+              </div>
+            )}
+
+            <button className="btn primary" onClick={() => setSettingsOpen(false)}>
+              Save
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
-}

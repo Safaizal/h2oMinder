@@ -476,3 +476,66 @@ body {
 @keyframes veilOut {
   to { opacity: 0; visibility: hidden; }
 }
+
+/* ---- settings modal ---- */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 999;
+  padding: 16px;
+}
+
+.settings-panel {
+  background: rgba(6, 12, 14, 0.85);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 18px 20px;
+  min-width: 260px;
+  max-width: 90vw;
+  box-shadow: var(--neon-glow), 0 24px 70px rgba(0, 0, 0, 0.6);
+  font-family: var(--mono);
+}
+
+.settings-panel h3 {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 14px;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.field-group label {
+  font-size: 9px;
+  color: rgba(200, 255, 212, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.field-group input,
+.field-group select {
+  padding: 6px 8px;
+  font-size: 11px;
+  font-family: var(--mono);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--accent);
+  outline: none;
+}
+
+.field-group input:focus,
+.field-group select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}

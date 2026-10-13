@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: h20minder
+appId: com.safaizal.h20minder
+productName: H20Minder
 directories:
   buildResources: build
 files:
@@ -34,13 +34,10 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: Safaizal
   category: Utility
+  description: Retro-hacker hydration reminder widget for your desktop
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates

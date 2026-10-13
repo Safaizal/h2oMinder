@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addWater: (amount: number) => ipcRenderer.invoke('add-water', amount),
   getTodayIntake: () => ipcRenderer.invoke('get-today-intake'),
 
+  // Notification bridge config
+  getNotifyConfig: () => ipcRenderer.invoke('get-notify-config'),
+  saveNotifyConfig: (cfg: unknown) => ipcRenderer.invoke('save-notify-config', cfg),
+
   // Event listeners (Main -> Renderer). Each returns an unsubscribe fn.
   onReminder: (callback: () => void) => {
     const handler = (): void => callback()

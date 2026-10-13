@@ -1,9 +1,9 @@
 {
   "name": "h20minder",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Retro-hacker hydration reminder widget for your desktop",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "Safaizal",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "icons:tray": "node scripts/generate-tray-icons.mjs",

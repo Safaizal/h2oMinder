@@ -121,6 +121,56 @@ function createTray(): void {
   refreshTray()
 }
 
+// ---------- Notification bridge services ----------
+type NotifyService = 'none' | 'pushover' | 'telegram' | 'discord'
+
+interface NotifyConfig {
+  service: NotifyService
+  pushover?: { token: string; userKey: string }
+  telegram?: { botToken: string; chatId: string }
+  discord?: { webhookUrl: string }
+}
+
+async function sendMobileNotification(cfg: NotifyConfig, title: string, body: string): Promise<void> {
+  try {
+    if (cfg.service === 'pushover' && cfg.pushover) {
+      const url = 'https://api.pushover.net/1/messages.json'
+      const params = new URLSearchParams({
+        token: cfg.pushover.token,
+        user: cfg.pushover.userKey,
+        title,
+        message: body,
+      })
+      await fetch(url, { method: 'POST', body: params })
+    } else if (cfg.service === 'telegram' && cfg.telegram) {
+      const url = `https://api.telegram.org/bot${cfg.telegram.botToken}/sendMessage`
+      const params = new URLSearchParams({
+        chat_id: cfg.telegram.chatId,
+        text: `${title} — ${body}`,
+        parse_mode: 'HTML',
+      })
+      await fetch(url, { method: 'POST', body: params })
+    } else if (cfg.service === 'discord' && cfg.discord) {
+      await fetch(cfg.discord.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: '💧 h2oMinder', content: `**${title}** — ${body}` }),
+      })
+    }
+  } catch {
+    /* notification bridge failed — the local notification already fired */
+  }
+}
+
+// Load notification config from store
+function getNotifyConfig(): NotifyConfig {
+  const saved = store.get('notifyConfig')
+  if (saved && typeof saved === 'object') {
+    return saved as NotifyConfig
+  }
+  return { service: 'none' }
+}
+
 function startReminders(): void {
   if (reminderTimer) clearInterval(reminderTimer)
 
@@ -135,11 +185,16 @@ function startReminders(): void {
 
       // Only remind if they haven't met their goal
       if (intake < goal) {
+        const title = 'HYD_PROTOCOL // hydrate! 💧'
+        const body = `You've had ${intake}ml. Goal is ${goal}ml. Drink a glass of water!`
         new Notification({
-          title: 'HYD_PROTOCOL // hydrate! 💧',
-          body: `You've had ${intake}ml. Goal is ${goal}ml. Drink a glass of water!`,
+          title,
+          body,
           silent: false
         }).show()
+
+        // Also send to phone if configured
+        sendMobileNotification(getNotifyConfig(), title, body)
 
         // Optional: Send event to UI if it's open
         mainWindow?.webContents.send('trigger-reminder')
@@ -177,6 +232,20 @@ ipcMain.handle('save-settings', (_, settings) => {
   store.set('reminderMinutes', settings.reminderMinutes)
   refreshTray()
   startReminders() // Restart timer with new settings
+})
+
+// --- Notification bridge settings ---
+ipcMain.handle('get-notify-config', () => {
+  const saved = store.get('notifyConfig')
+  if (saved && typeof saved === 'object') {
+    return saved as NotifyConfig
+  }
+  return { service: 'none' } as NotifyConfig
+})
+
+ipcMain.handle('save-notify-config', (_, cfg: NotifyConfig) => {
+  store.set('notifyConfig', cfg)
+  return { ok: true }
 })
 
 function handleAddWater(amount: number): void {
