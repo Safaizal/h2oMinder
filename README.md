@@ -51,6 +51,12 @@ $ npm run build:mac
 $ npm run build:linux
 ```
 
+> **macOS note:** the `.dmg` is created with Apple tooling (`sips`), so it can
+> only be produced on macOS — pushing a tag runs the GitHub Actions **Release**
+> workflow on a macOS runner and builds a universal `.dmg`/`.zip` for both Intel
+> and Apple Silicon. Running `npm run build:mac` on Linux/Windows still works and
+> cross-builds `.zip` bundles for both architectures.
+
 ### Release
 
 Push a version tag and GitHub Actions builds all three platforms:
