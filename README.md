@@ -24,6 +24,12 @@ Grab the latest installer for your OS from the [**Releases page**](https://githu
 - Dynamic tray icon showing fill level (0–100%)
 - Configurable daily goal + reminder interval with desktop notifications
 
+## Screenshot
+
+![h2oMinder Screenshot](screenshot.png)
+
+The retro-hacker hydration widget showing the bottle fill, progress bar, quick-add buttons, undo, and reminder timer.
+
 ## Project Setup
 
 ### Install
